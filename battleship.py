@@ -11,26 +11,22 @@ PORT = 11223
 BOARD = {}
 SHIPS = {
 	'Carrier' :  {
-		'size': 5,
-		'pos': None,
-		'dir': None
+		'size': 5
 	},
 	'Battleship' : {
-		'size': 4,
-		'pos': None,
-		'dir': None
+		'size': 4
 	},
 	'Destroyer' : {
-		'size': 3,
-		'pos': None,
-		'dir': None
+		'size': 3
 	},
 	'Patrol-Boat': {
-		'size': 2,
-		'pos': None,
-		'dir': None
+		'size': 2
 	}
 }
+
+#################################################################################
+################################ GAME SETUP #####################################
+#################################################################################
 
 # setup up game, whether joining game or creating new one
 def setup_handler():
@@ -40,6 +36,9 @@ def setup_handler():
 
 	# wait until user enters a valid response
 	while response != 'start' and response != 'join':
+
+
+
 		print("Sorry, you must specify either 'start' or 'join' to continue")
 		response = sys.stdin.readline().strip('\n')
 
@@ -84,6 +83,10 @@ def setup_handler():
 	os.system('clear')
 	return
 
+#################################################################################
+############################## Initialization ###################################
+#################################################################################
+
 # initialize all places on board as empty
 def initialize_board():
 	for row in ROWS:
@@ -91,6 +94,9 @@ def initialize_board():
 		for col in COLUMNS:
 			BOARD[row][col] = '   '
 
+#################################################################################
+############################## SHIP PLACEMENT ###################################
+#################################################################################
 
 # allow user to place their ships on the board
 def place_ships():
@@ -126,44 +132,7 @@ def place_ships():
 
 	print(location)
 
-def place_ship(ship_type, location_string, direction):
-	index = len(location_string) - 1
-	row = ROWS.index(location_string[:index])
-	col = COLUMNS.index(location_string[index])
-	size = SHIPS[ship_type]['size']
-
-	for i in range(size):
-		if direction == 'down':
-			if i == 0:
-				BOARD[ROWS[row + i]][COLUMNS[col]] = ' Λ '
-			elif i == size - 1:
-				BOARD[ROWS[row + i]][COLUMNS[col]] = ' V '
-			else:
-				BOARD[ROWS[row + i]][COLUMNS[col]] = ' ‖ '
-		elif direction == 'up':
-			if i == 0:
-				BOARD[ROWS[row - i]][COLUMNS[col]] = ' V '
-			elif i == size - 1:
-				BOARD[ROWS[row - i]][COLUMNS[col]] = ' Λ '
-			else:
-				BOARD[ROWS[row - i]][COLUMNS[col]] = ' ‖ '
-		elif direction == 'right':
-			if i == 0:
-				BOARD[ROWS[row]][COLUMNS[col + i]] = ' <='
-			elif i == size - 1:
-				BOARD[ROWS[row]][COLUMNS[col + i]] = '=> '
-			else:
-				BOARD[ROWS[row]][COLUMNS[col + i]] = '==='
-		else:
-			if i == 0:
-				BOARD[ROWS[row]][COLUMNS[col - i]] = '=> '
-			elif i == size - 1:
-				BOARD[ROWS[row]][COLUMNS[col - i]] = ' <='
-			else:
-				BOARD[ROWS[row]][COLUMNS[col] - i] = '==='
-
-
-
+# ensure location string is valid position on board
 def valid_location(location_string):
 	index = len(location_string) - 1
 
@@ -174,7 +143,6 @@ def valid_location(location_string):
 		return False
 
 	return True
-
 
 # ensure valid placement of ship
 def ship_fits_on_board(ship_type, location_string, direction):
@@ -219,12 +187,46 @@ def ship_fits_on_board(ship_type, location_string, direction):
 
 	return True
 
+# once verified as a valid placement, update the board
+def place_ship(ship_type, location_string, direction):
+	index = len(location_string) - 1
+	row = ROWS.index(location_string[:index])
+	col = COLUMNS.index(location_string[index])
+	size = SHIPS[ship_type]['size']
 
+	for i in range(size):
+		if direction == 'down':
+			if i == 0:
+				BOARD[ROWS[row + i]][COLUMNS[col]] = ' Λ '
+			elif i == size - 1:
+				BOARD[ROWS[row + i]][COLUMNS[col]] = ' V '
+			else:
+				BOARD[ROWS[row + i]][COLUMNS[col]] = ' ‖ '
+		elif direction == 'up':
+			if i == 0:
+				BOARD[ROWS[row - i]][COLUMNS[col]] = ' V '
+			elif i == size - 1:
+				BOARD[ROWS[row - i]][COLUMNS[col]] = ' Λ '
+			else:
+				BOARD[ROWS[row - i]][COLUMNS[col]] = ' ‖ '
+		elif direction == 'right':
+			if i == 0:
+				BOARD[ROWS[row]][COLUMNS[col + i]] = ' <='
+			elif i == size - 1:
+				BOARD[ROWS[row]][COLUMNS[col + i]] = '=> '
+			else:
+				BOARD[ROWS[row]][COLUMNS[col + i]] = '==='
+		else:
+			if i == 0:
+				BOARD[ROWS[row]][COLUMNS[col - i]] = '=> '
+			elif i == size - 1:
+				BOARD[ROWS[row]][COLUMNS[col - i]] = ' <='
+			else:
+				BOARD[ROWS[row]][COLUMNS[col] - i] = '==='
 
-
-
-
-
+#################################################################################
+############################## PRINTING BOARD ###################################
+#################################################################################
 
 # print out the current state of the board
 def print_board():
@@ -251,6 +253,10 @@ def print_sep():
 		print('----', end='')
 	print('', end='\n')
 
+
+#################################################################################
+################################### MAIN ########################################
+#################################################################################
 
 def main():
 	os.system('clear')
