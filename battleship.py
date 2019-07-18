@@ -25,7 +25,7 @@ SHIPS = {
 		'pos': None,
 		'dir': None
 	},
-	'Patrol Boat': {
+	'Patrol-Boat': {
 		'size': 2,
 		'pos': None,
 		'dir': None
@@ -100,25 +100,68 @@ def place_ships():
 	print("Choose where to place your available ships, one at a time, by typing in the boat name, location, and direction.")
 	print("An example is \"Destroyer 2A down\"\n")
 
-	print("Available ships:")
-	for ship in available_ships:
-		print("\t{} (size {})".format(ship, SHIPS[ship]['size']))
-	print('', end='\n')
+	while len(available_ships) != 0:
+		print("Available ships:")
+		for ship in available_ships:
+			print("\t{} (size {})".format(ship, SHIPS[ship]['size']))
+		print('', end='\n')
 
-	location = sys.stdin.readline().strip('\n').split(' ')
+		location = sys.stdin.readline().strip('\n').split(' ')
 
-	if len(location) != 3:
-		print("Must pass in three values")
-	elif location[0] not in available_ships:
-		print("Sorry, you must input a valid ship name")
-	elif not valid_location(location[1]):
-		print("invalid location")
-	elif location[2] not in DIRECTIONS:
-		print("invalid direction")
-	elif not ship_fits_on_board(location[0], location[1], location[2]):
-		print("{} does not fit at that placement".format(location[0]))
+		if len(location) != 3:
+			print("Must pass in three values")
+		elif location[0] not in available_ships:
+			print("Sorry, you must input a valid ship name")
+		elif not valid_location(location[1]):
+			print("invalid location")
+		elif location[2] not in DIRECTIONS:
+			print("invalid direction")
+		elif not ship_fits_on_board(location[0], location[1], location[2]):
+			print("{} does not fit at that placement".format(location[0]))
+		else: 
+			place_ship(location[0], location[1], location[2])
+			available_ships.remove(location[0])
+			print_board()
+			print("Please make your next selection")
 
 	print(location)
+
+def place_ship(ship_type, location_string, direction):
+	index = len(location_string) - 1
+	row = ROWS.index(location_string[:index])
+	col = COLUMNS.index(location_string[index])
+	size = SHIPS[ship_type]['size']
+
+	for i in range(size):
+		if direction == 'down':
+			if i == 0:
+				BOARD[ROWS[row + i]][COLUMNS[col]] = ' Λ '
+			elif i == size - 1:
+				BOARD[ROWS[row + i]][COLUMNS[col]] = ' V '
+			else:
+				BOARD[ROWS[row + i]][COLUMNS[col]] = ' ‖ '
+		elif direction == 'up':
+			if i == 0:
+				BOARD[ROWS[row - i]][COLUMNS[col]] = ' V '
+			elif i == size - 1:
+				BOARD[ROWS[row - i]][COLUMNS[col]] = ' Λ '
+			else:
+				BOARD[ROWS[row - i]][COLUMNS[col]] = ' ‖ '
+		elif direction == 'right':
+			if i == 0:
+				BOARD[ROWS[row]][COLUMNS[col + i]] = ' <='
+			elif i == size - 1:
+				BOARD[ROWS[row]][COLUMNS[col + i]] = '=> '
+			else:
+				BOARD[ROWS[row]][COLUMNS[col + i]] = '==='
+		else:
+			if i == 0:
+				BOARD[ROWS[row]][COLUMNS[col - i]] = '=> '
+			elif i == size - 1:
+				BOARD[ROWS[row]][COLUMNS[col - i]] = ' <='
+			else:
+				BOARD[ROWS[row]][COLUMNS[col] - i] = '==='
+
 
 
 def valid_location(location_string):
@@ -135,10 +178,11 @@ def valid_location(location_string):
 
 # ensure valid placement of ship
 def ship_fits_on_board(ship_type, location_string, direction):
-	index = len(location_string) -1
+	index = len(location_string) - 1
+	start_row = int(location_string[:index])
+	start_col = COLUMNS.index(location_string[index])
 
 	if direction == 'down' or direction == 'up':
-		start_row = int(location_string[:index])
 		diff = SHIPS[ship_type]['size'] - 1
 		end_row = None
 		if direction == 'down':
@@ -146,15 +190,17 @@ def ship_fits_on_board(ship_type, location_string, direction):
 		else:
 			end_row = start_row - diff
 		if end_row > MAX_LENGTH or end_row < 1:
-			print("MAX_LENGTH is {}".format(MAX_LENGTH))
-			print("start row is {}".format(start_row))
-			print("diff is {}".format(diff))
-			print("end row is {}".format(end_row))
-			print("invalid row")
 			return False
 
+		for i in range(SHIPS[ship_type]['size']):
+			if direction == 'down' and BOARD[ROWS[start_row + i]][COLUMNS[start_col]] == ' x ':
+				return False
+			elif BOARD[ROWS[start_row - i]][COLUMNS[start_col]] == ' x ':
+				return False
+
+
+
 	else:
-		start_col = COLUMNS.index(location_string[index])
 		diff = SHIPS[ship_type]['size'] - 1
 		end_col = None
 		if direction == 'right':
@@ -162,11 +208,13 @@ def ship_fits_on_board(ship_type, location_string, direction):
 		else:
 			end_col = start_col - diff
 		if end_col >= MAX_LENGTH or end_col < 0:
-			print("MAX_LENGTH is {}".format(MAX_LENGTH))
-			print("start col is {}".format(start_col))
-			print("diff is {}".format(diff))
-			print("end col is {}".format(end_col))
-			print("invalid row")
+			return False
+
+		for i in range(SHIPS[ship_type]['size']):
+			if direction == 'right' and BOARD[ROWS[start_row]][COLUMNS[start_col + i]] == ' x ':
+				return False
+			elif BOARD[ROWS[start_row]][COLUMNS[start_col - i]] == ' x ':
+				return False
 
 
 	return True
@@ -190,7 +238,10 @@ def print_board():
 		else:
 			print('{} |'.format(row), end='')
 		for col in COLUMNS:
-			print('{}|'.format(BOARD[row][col]), end='')
+			if COLUMNS.index(col) == MAX_LENGTH - 1:
+				print('{}|'.format(BOARD[row][col]), end='')
+			else:
+				print('{}:'.format(BOARD[row][col]), end='')
 		print_sep()
 
 # helper for print_board()
