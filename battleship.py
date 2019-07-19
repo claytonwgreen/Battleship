@@ -72,12 +72,7 @@ def setup_handler():
 			print("Sorry, your selection must be between 7 and 20")
 			num = int(sys.stdin.readline().strip('\n'))
 
-		# create arrays for rows/cols based on inputted value
-		global COLUMNS 
-		global ROWS
 		global MAX_LENGTH
-		COLUMNS = MAX_COLUMNS[:num]
-		ROWS = MAX_ROWS[:num]
 		MAX_LENGTH = num
 
 	# if joining a game
@@ -107,12 +102,22 @@ def setup_handler():
 ############################## Initialization ###################################
 #################################################################################
 
-# initialize all places on board as empty
-def initialize_board():
+# clear all entries in board
+def clear_board():
 	for row in ROWS:
 		BOARD[row] = {}
 		for col in COLUMNS:
 			BOARD[row][col] = '   '
+
+# initialize all places on board as empty
+def initialize_board():
+	# create arrays for rows/cols based on inputted value
+	global COLUMNS 
+	global ROWS
+	COLUMNS = MAX_COLUMNS[:MAX_LENGTH]
+	ROWS = MAX_ROWS[:MAX_LENGTH]
+	clear_board()
+
 
 #################################################################################
 ############################## SHIP PLACEMENT ###################################
@@ -137,7 +142,7 @@ def place_ships():
 		location_array = sys.stdin.readline().strip('\n').split(' ')
 
 		if len(location_array) == 1 and location_array[0] == 'clear':
-			initialize_board()
+			clear_board()
 			available_ships = list(SHIPS.keys())
 			os.system('clear')
 		elif len(location_array) != 3:
@@ -332,7 +337,8 @@ def main():
 		print('Connected by', addr)
 		OPPONENT_NAME = conn.recv(1024).decode()
 		print("playing against {}".format(OPPONENT_NAME))
-		hello_msg = PLAYER_NAME.encode()
+		hello_msg = (PLAYER_NAME + ':::' + '12')
+		hello_msg = hello_msg.encode()
 		conn.sendall(hello_msg)
 		conn.sendall("12".encode())
 		time.sleep(10)
@@ -343,10 +349,13 @@ def main():
 		s.connect((OPPONENT, OPPONENT_PORT))
 		hello_msg = PLAYER_NAME.encode()
 		s.sendall(hello_msg)
-		OPPONENT_NAME = s.recv(1024).decode()
+		received = s.recv(1024).decode()
+		received = received.split(':::')
+		OPPONENT_NAME = received[0]
+
 		print("playing against {}".format(OPPONENT_NAME))
 		global MAX_LENGTH
-		MAX_LENGTH = int(s.recv(1024).decode())
+		MAX_LENGTH = int(received[1])
 		print("max length is {}".format(MAX_LENGTH))
 		time.sleep(10)
 
