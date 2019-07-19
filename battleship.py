@@ -3,13 +3,21 @@ import socket
 import pickle
 import os
 import time
+import pickle
+
+
+#################################################################################
+############################## GLOBAL VARIABLES #################################
+#################################################################################
 
 MAX_COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T']
 MAX_ROWS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20']
+MAX_LENGTH = None
 DIRECTIONS = ['up', 'down', 'left', 'right']
 HOST = '127.0.0.1'
 PORT = 11223
 BOARD = {}
+OPPONENT_BOARD = None
 SHIPS = {
 	'Carrier' :  {
 		'size': 5
@@ -102,13 +110,6 @@ def setup_handler():
 ############################## Initialization ###################################
 #################################################################################
 
-# clear all entries in board
-def clear_board():
-	for row in ROWS:
-		BOARD[row] = {}
-		for col in COLUMNS:
-			BOARD[row][col] = '   '
-
 # initialize all places on board as empty
 def initialize_board():
 	# create arrays for rows/cols based on inputted value
@@ -118,6 +119,12 @@ def initialize_board():
 	ROWS = MAX_ROWS[:MAX_LENGTH]
 	clear_board()
 
+# set all entries on board to empty
+def clear_board():
+	for row in ROWS:
+		BOARD[row] = {}
+		for col in COLUMNS:
+			BOARD[row][col] = '   '
 
 #################################################################################
 ############################## SHIP PLACEMENT ###################################
@@ -129,37 +136,45 @@ def place_ships():
 	os.system('clear')
 	message = ''
 
-	# allow player to place ships until they have run out
+	# allow player to place ships until they have placed all 
 	while len(available_ships) != 0:
+		# print current state of the board
 		print_current_state(available_ships)
 
+		# print message from previous input, if any 
 		if message != '':
 			print("ERROR: {}".format(message), end='\n\n')
-		
 		print("Input your placement: ", end='')
 		sys.stdout.flush()
 		message = ''
 		location_array = sys.stdin.readline().strip('\n').split(' ')
 
+		# reset board
 		if len(location_array) == 1 and location_array[0] == 'clear':
 			clear_board()
 			available_ships = list(SHIPS.keys())
 			os.system('clear')
+		# invalid input sequence
 		elif len(location_array) != 3:
 			os.system('clear')
 			message = "Sorry, you must either pass in three values or \"clear\""
+		# invalid ship name
 		elif location_array[0] not in available_ships:
 			os.system('clear')
 			message = "Sorry, {} is not a valid ship".format(location_array[0])
+		# invalid baord location
 		elif not valid_location(location_array[1]):
 			os.system('clear')
 			message = "Sorry, {} is not a valid location".format(location_array[1])
+		# invalid direction
 		elif location_array[2] not in DIRECTIONS:
 			os.system('clear')
 			message = "Sorry, {} is not a valid direction".format(location_array[2])
+		# ship does not fit
 		elif not ship_fits_on_board(location_array[0], location_array[1], location_array[2]):
 			os.system('clear')
 			message = "{} does not fit at {} with direction {}".format(location_array[0], location_array[1], location_array[2])
+		# valid input, insert ship
 		else: 
 			place_ship(location_array[0], location_array[1], location_array[2])
 			available_ships.remove(location_array[0])
@@ -197,9 +212,11 @@ def print_current_state(available_ships):
 def valid_location(location_string):
 	index = len(location_string) - 1
 
+	# ensure valid column input
 	if location_string[index] not in COLUMNS:
 		return False
 
+	# ensure valid row input
 	if location_string[:index] not in ROWS:
 		return False
 
@@ -214,6 +231,8 @@ def ship_fits_on_board(ship_type, location_string, direction):
 
 	if direction == 'down' or direction == 'up':
 		end_row = None
+
+		# check if rest of ship will be off the board
 		if direction == 'down':
 			end_row = start_row + diff
 		else:
@@ -222,6 +241,7 @@ def ship_fits_on_board(ship_type, location_string, direction):
 			print("return 1")
 			return False
 
+		# check if there is a ship already in any of the positions
 		for i in range(diff + 1):
 			if direction == 'down':
 				if BOARD[ROWS[start_row - 1 + i]][COLUMNS[start_col]] != '   ':
@@ -233,6 +253,8 @@ def ship_fits_on_board(ship_type, location_string, direction):
 	# direction == 'left' or 'right'
 	else: 
 		end_col = None
+
+		# check if rest of ship will be off the board
 		if direction == 'right':
 			end_col = start_col + diff
 		else:
@@ -240,6 +262,7 @@ def ship_fits_on_board(ship_type, location_string, direction):
 		if end_col >= MAX_LENGTH or end_col < 0:
 			return False
 
+		# check if there is a ship already in any of the positions
 		for i in range(diff + 1):
 			if direction == 'right':
 				if BOARD[ROWS[start_row - 1]][COLUMNS[start_col + i]] != '   ':
@@ -247,7 +270,6 @@ def ship_fits_on_board(ship_type, location_string, direction):
 			else:
 				if BOARD[ROWS[start_row - 1]][COLUMNS[start_col - i]] != '   ':
 					return False
-
 
 	return True
 
@@ -310,6 +332,24 @@ def print_board():
 				print('{}:'.format(BOARD[row][col]), end='')
 		print_sep()
 
+# print out the current state of the board
+def print_opp_board():
+	print('   ', end='|')
+	for column in COLUMNS:
+		print(" {} ".format(column), end='|')
+	print_sep()
+	for row in ROWS:
+		if len(row) == 1:
+			print(' {} |'.format(row), end='')
+		else:
+			print('{} |'.format(row), end='')
+		for col in COLUMNS:
+			if COLUMNS.index(col) == MAX_LENGTH - 1:
+				print('{}|'.format(OPPONENT_BOARD[row][col]), end='')
+			else:
+				print('{}:'.format(OPPONENT_BOARD[row][col]), end='')
+		print_sep()
+
 # helper for print_board()
 def print_sep():
 	print('\n----', end='')
@@ -317,6 +357,30 @@ def print_sep():
 		print(' - -', end='')
 	print('', end='\n')
 
+
+#################################################################################
+################################## MOVES ########################################
+#################################################################################
+
+# send a move
+def send_move(connection, location_string):
+	pass
+	
+def print_hit():
+	print(" __     __   ________   ________    _   _   _ ")
+	print("|  |   |  | |__    __| |__    __|  | | | | | |")
+	print("|  |___|  |    |  |       |  |     | | | | | |")
+	print("|   ___   |    |  |       |  |     |_| |_| |_|")
+	print("|  |   |  |  __|  |__     |  |      _   _   _ ")
+	print("|__|   |__| |________|    |__|     (_) (_) (_)")
+
+def print_miss():
+	print("                                        _")
+	print(" __  __   ___   ____    ____       _   / /")
+	print("|  \\/  | |_ _| / ___|  / ___|     (_) | | ")
+	print("| |\\/| |  | |  \\___ \\  \\___ \\      _  | | ")
+	print("| |  | |  | |   ___) |  ___) |    (_) | | ")
+	print("|_|  |_| |___| |____/  |____/          \\_\\")
 
 #################################################################################
 ################################### MAIN ########################################
@@ -330,6 +394,7 @@ def main():
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	global OPPONENT_NAME
 	global MAX_LENGTH
+	global OPPONENT_BOARD
 
 	# if this player started game
 	if OPPONENT == None:
@@ -343,8 +408,14 @@ def main():
 		hello_msg = (PLAYER_NAME + ':::' + str(MAX_LENGTH))
 		hello_msg = hello_msg.encode()
 		conn.sendall(hello_msg)
-		# conn.sendall("12".encode())
-		time.sleep(10)
+		time.sleep(1)
+		initialize_board()
+		place_ships()
+		conn.sendall(pickle.dumps(BOARD, -1))
+
+		OPPONENT_BOARD = pickle.loads(s.recv(4096))
+		print_opp_board()
+
 
 	# if this player is joining a game
 	else:
@@ -356,15 +427,16 @@ def main():
 		received = s.recv(1024).decode()
 		received = received.split(':::')
 		OPPONENT_NAME = received[0]
-
 		print("playing against {}".format(OPPONENT_NAME))
 		MAX_LENGTH = int(received[1])
 		print("max length is {}".format(MAX_LENGTH))
-		time.sleep(10)
+		time.sleep(1)
+		initialize_board()
+		place_ships()
+		conn.sendall(pickle.dumps(BOARD, -1))
 
-	# allow player to place thier ships
-	initialize_board()
-	place_ships()
+		OPPONENT_BOARD = pickle.loads(s.recv(4096))
+		print_opp_board()
 
 
 
