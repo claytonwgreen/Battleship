@@ -329,8 +329,9 @@ def main():
 	# set up socket
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	global OPPONENT_NAME
+	global MAX_LENGTH
 
-	# connect or wait for opponent to connect
+	# if this player started game
 	if OPPONENT == None:
 		s.bind((HOST, PORT))
 		print("binding to {} at port {}".format(HOST, PORT))
@@ -339,12 +340,13 @@ def main():
 		print('Connected by', addr)
 		OPPONENT_NAME = conn.recv(1024).decode()
 		print("playing against {}".format(OPPONENT_NAME))
-		hello_msg = (PLAYER_NAME + ':::' + '12')
+		hello_msg = (PLAYER_NAME + ':::' + str(MAX_LENGTH))
 		hello_msg = hello_msg.encode()
 		conn.sendall(hello_msg)
-		conn.sendall("12".encode())
+		# conn.sendall("12".encode())
 		time.sleep(10)
 
+	# if this player is joining a game
 	else:
 		print("Trying to connect to {} at port {}".format(OPPONENT, OPPONENT_PORT))
 		sys.stdout.flush()
@@ -356,7 +358,6 @@ def main():
 		OPPONENT_NAME = received[0]
 
 		print("playing against {}".format(OPPONENT_NAME))
-		global MAX_LENGTH
 		MAX_LENGTH = int(received[1])
 		print("max length is {}".format(MAX_LENGTH))
 		time.sleep(10)
@@ -365,26 +366,7 @@ def main():
 	initialize_board()
 	place_ships()
 
-	
 
-
-
-
-
-
-
-
-	# with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-	#     s.bind((HOST, PORT))
-	#     s.listen()
-	#     conn, addr = s.accept()
-	#     with conn:
-	#         print('Connected by', addr)
-	#         while True:
-	#             data = conn.recv(1024)
-	#             if not data:
-	#                 break
-	#             conn.sendall(data)
 
 if __name__ == '__main__':
 	main()
