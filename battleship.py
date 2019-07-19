@@ -165,6 +165,8 @@ def place_ships():
 			available_ships.remove(location_array[0])
 			os.system('clear')
 
+	print_board()
+
 # print for ship placement
 def print_current_state(available_ships):
 	# print curretn board
