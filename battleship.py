@@ -21,16 +21,17 @@ OPPONENT_BOARD = None
 SHIPS = {
 	'Carrier' :  {
 		'size': 5
-	},
-	'Battleship' : {
-		'size': 4
-	},
-	'Destroyer' : {
-		'size': 3
-	},
-	'Patrol-Boat': {
-		'size': 2
 	}
+	# },
+	# 'Battleship' : {
+	# 	'size': 4
+	# },
+	# 'Destroyer' : {
+	# 	'size': 3
+	# },
+	# 'Patrol-Boat': {
+	# 	'size': 2
+	# }
 }
 OPPONENT = None
 OPPONENT_PORT = None
@@ -99,6 +100,8 @@ def setup_handler():
 		OPPONENT_PORT = sys.stdin.readline().strip('\n')
 		if OPPONENT_PORT == 'Default':
 			OPPONENT_PORT = 11223
+		else:
+			OPPONENT_PORT = int(OPPONENT_PORT)
 
 		print("opponent at {} port {}".format(OPPONENT, OPPONENT_PORT))
 
@@ -365,7 +368,7 @@ def print_sep():
 # send a move
 def send_move(connection, location_string):
 	pass
-	
+
 def print_hit():
 	print(" __     __   ________   ________    _   _   _ ")
 	print("|  |   |  | |__    __| |__    __|  | | | | | |")
@@ -413,8 +416,32 @@ def main():
 		place_ships()
 		conn.sendall(pickle.dumps(BOARD, -1))
 
-		OPPONENT_BOARD = pickle.loads(s.recv(4096))
+		OPPONENT_BOARD = pickle.loads(conn.recv(4096))
 		print_opp_board()
+
+		print("Please input your attack location.")
+		print("An example would be \"7B\"")
+		received = sys.stdin.readline().strip()
+		valid_input = valid_location(received)
+
+		while not valid_input:
+			print("Sorry, {} is not a valid location on the board".format(received))
+			print("Please input a valid location")
+			received = sys.stdin.readline().strip()
+			valid_input = valid_location(received)
+
+		index = len(received) - 1
+		row = received[:index]
+		col = received[index]
+		if OPPONENT_BOARD[row][col] != '   ':
+			print_hit()
+		else:
+			print_miss()
+
+		conn.sendall(received.encode())
+
+
+
 
 
 	# if this player is joining a game
@@ -433,10 +460,20 @@ def main():
 		time.sleep(1)
 		initialize_board()
 		place_ships()
-		conn.sendall(pickle.dumps(BOARD, -1))
+		s.sendall(pickle.dumps(BOARD, -1))
 
 		OPPONENT_BOARD = pickle.loads(s.recv(4096))
 		print_opp_board()
+
+		opponent_move = s.recv(1024).decode()
+		index = len(opponent_move) - 1
+		row = opponent_move[:index]
+		col = opponent_move[index]
+		if BOARD[row][col] != '   ':
+			print("your opponent hit your ship")
+		else:
+			print("your opponent missed your ships")
+
 
 
 
