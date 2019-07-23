@@ -16,8 +16,10 @@ MAX_LENGTH = None
 DIRECTIONS = ['up', 'down', 'left', 'right']
 HOST = '127.0.0.1'
 PORT = 11223
+STARTING = False
 BOARD = {}
 OPPONENT_BOARD = None
+TARGETTED_BOARD = {}
 SHIPS = {
 	'Carrier' :  {
 		'size': 5
@@ -33,7 +35,7 @@ SHIPS = {
 	# 	'size': 2
 	# }
 }
-OPPONENT = None
+OPPONENT_IP = None
 OPPONENT_PORT = None
 PLAYER_NAME = None
 OPPONENT_NAME = None
@@ -47,18 +49,19 @@ def setup_handler():
 	os.system('clear')
 
 	# see if player is joining a game or starting a new one
-	print("Will you be starting the game or joining someone else's game? (start/join)")
-	response = sys.stdin.readline().strip('\n')
+	print("Will you be starting the game or joining someone else's game? \n\n(start/join): ", end='')
+	sys.stdout.flush()
+	response = sys.stdin.readline().strip('\n').lower()
 
 	# wait until user enters a valid response
 	while response != 'start' and response != 'join':
-		print("Sorry, you must specify either 'start' or 'join' to continue")
-		response = sys.stdin.readline().strip('\n')
+		print("Sorry, you must specify either 'start' or 'join' to continue\n\n(start/join): ", end='')
+		response = sys.stdin.readline().strip('\n').lower()
 
 	os.system('clear')
 
 	# have player enter their name
-	print("Please enter your name:")
+	print("Please enter your name\n\nPlayer name: ", end='')
 	global PLAYER_NAME
 	PLAYER_NAME = sys.stdin.readline().strip('\n')
 
@@ -66,48 +69,55 @@ def setup_handler():
 
 	# if starting a new game
 	if response == 'start':
-		print("How many rows/columns would you like on the board? (10 is recommended, 20 is max, 7 is min)")
-		num = None
-		while True:
-			try:
-				num = int(sys.stdin.readline().strip('\n'))
-				break
-			except ValueError:
-				print("Sorry, you must input a number like \"10\"")
-				pass
-
-		# wait until user enters valid number
-		while num > 20 or num < 7:
-			print("Sorry, your selection must be between 7 and 20")
-			num = int(sys.stdin.readline().strip('\n'))
-
-		global MAX_LENGTH
-		MAX_LENGTH = num
+		starting_setup()
 
 	# if joining a game
 	else:
-		print("Please input the IP address of your opponent, then hit \"Enter\" (127.0.0.1 if playing on the same computer):")
-		global OPPONENT
-		OPPONENT = sys.stdin.readline().strip('\n')
-
-		if OPPONENT == '127.0.0.1':
-			print("playing locally")
-		else:
-			print("playing nonlocally")
-
-		print("Please input your opponents port number. If then did not enter one, enter \"Default\"")
-		global OPPONENT_PORT
-		OPPONENT_PORT = sys.stdin.readline().strip('\n')
-		if OPPONENT_PORT == 'Default':
-			OPPONENT_PORT = 11223
-		else:
-			OPPONENT_PORT = int(OPPONENT_PORT)
-
-		print("opponent at {} port {}".format(OPPONENT, OPPONENT_PORT))
-
+		joining_setup()
 
 	os.system('clear')
+
 	return
+
+# handler if player is starting game
+def starting_setup():
+	global STARTING
+	STARTING = True
+	print("How many rows/columns would you like on the board? (10 is recommended, 20 is max, 7 is min)\n\nRows/Columns: ", end='')
+	num = None
+	while True:
+		try:
+			num = int(sys.stdin.readline().strip('\n'))
+			break
+		except ValueError:
+			print("Sorry, you must input a number, such as \"10\"\n\nRows/Columns: ", end='')
+			pass
+
+	# wait until user enters valid number
+	while num > 20 or num < 7:
+		print("Sorry, your selection must be between 7 and 20\n\nRows/Columns: ", end='')
+		num = int(sys.stdin.readline().strip('\n'))
+
+	global MAX_LENGTH
+	MAX_LENGTH = num
+
+# handler if player is joining a game
+def joining_setup():
+	print("Please input the IP address of your opponent, if playing on the same computer just hit Enter\n\nIP address: ", end='')
+	global OPPONENT_IP
+	OPPONENT_IP = sys.stdin.readline().strip('\n')
+	if OPPONENT_IP == '':
+		OPPONENT_IP = '127.0.0.1'
+
+	os.system('clear')
+
+	print("Please input your opponents port number. If they did not enter one, just hit enter\n\nPort: ", end='')
+	global OPPONENT_PORT
+	OPPONENT_PORT = sys.stdin.readline().strip('\n')
+	if OPPONENT_PORT == '':
+		OPPONENT_PORT = 11223
+	else:
+		OPPONENT_PORT = int(OPPONENT_PORT)
 
 #################################################################################
 ############################## Initialization ###################################
@@ -120,14 +130,22 @@ def initialize_board():
 	global ROWS
 	COLUMNS = MAX_COLUMNS[:MAX_LENGTH]
 	ROWS = MAX_ROWS[:MAX_LENGTH]
-	clear_board()
+	clear_main_board()
+	clear_opp_board()
 
 # set all entries on board to empty
-def clear_board():
+def clear_main_board():
 	for row in ROWS:
 		BOARD[row] = {}
 		for col in COLUMNS:
 			BOARD[row][col] = '   '
+
+# set all entries on target board to empty
+def clear_opp_board():
+	for row in ROWS:
+		TARGETTED_BOARD[row] = {}
+		for col in COLUMNS:
+			TARGETTED_BOARD[row][col] = '   '
 
 #################################################################################
 ############################## SHIP PLACEMENT ###################################
@@ -353,6 +371,23 @@ def print_opp_board():
 				print('{}:'.format(OPPONENT_BOARD[row][col]), end='')
 		print_sep()
 
+def print_targ_board():
+	print('   ', end='|')
+	for column in COLUMNS:
+		print(" {} ".format(column), end='|')
+	print_sep()
+	for row in ROWS:
+		if len(row) == 1:
+			print(' {} |'.format(row), end='')
+		else:
+			print('{} |'.format(row), end='')
+		for col in COLUMNS:
+			if COLUMNS.index(col) == MAX_LENGTH - 1:
+				print('{}|'.format(TARGETTED_BOARD[row][col]), end='')
+			else:
+				print('{}:'.format(TARGETTED_BOARD[row][col]), end='')
+		print_sep()
+
 # helper for print_board()
 def print_sep():
 	print('\n----', end='')
@@ -360,15 +395,98 @@ def print_sep():
 		print(' - -', end='')
 	print('', end='\n')
 
+# print target and own board during play
+def print_both_boards():
+	print('   ', end='|')
+	for column in COLUMNS:
+		print(" {} ".format(column), end='|')
+	print('\t\t   ', end='|')
+	for column in COLUMNS:
+		print(" {} ".format(column), end='|')
+	print_both_sep()
+	for row in ROWS:
+		if len(row) == 1:
+			print(' {} |'.format(row), end='')
+		else:
+			print('{} |'.format(row), end='')
+		for col in COLUMNS:
+			if COLUMNS.index(col) == MAX_LENGTH - 1:
+				print('{}|'.format(BOARD[row][col]), end='')
+			else:
+				print('{}:'.format(BOARD[row][col]), end='')
+		print('\t\t', end='')
+		if len(row) == 1:
+			print(' {} |'.format(row), end='')
+		else:
+			print('{} |'.format(row), end='')
+		for col in COLUMNS:
+			if COLUMNS.index(col) == MAX_LENGTH - 1:
+				print('{}|'.format(TARGETTED_BOARD[row][col]), end='')
+			else:
+				print('{}:'.format(TARGETTED_BOARD[row][col]), end='')
+		print_both_sep()
+
+# helper for printing both boards
+def print_both_sep():
+	print('\n----', end='')
+	for i in COLUMNS:
+		print(' - -', end='')
+	print('\t\t', end='')
+	print('----', end='')
+	for i in COLUMNS:
+		print(' - -', end='')
+	print('', end='\n')
 
 #################################################################################
 ################################## MOVES ########################################
 #################################################################################
 
 # send a move
-def send_move(connection, location_string):
-	pass
+def play_game(connection, my_turn):
 
+	if my_turn:
+		print("Please input your attack location\nAn example would be \"7B\"\n\nLocation: ", end='')
+		Input = sys.stdin.readline().strip()
+		valid_input = valid_location(Input)
+
+		while not valid_input:
+			print("Sorry, {} is not a valid location on the board\n\nLocation: ".format(Input), end='')
+			Input = sys.stdin.readline().strip()
+			valid_input = valid_location(Input)
+
+		index = len(Input) - 1
+		row = Input[:index]
+		col = Input[index]
+		if OPPONENT_BOARD[row][col] != '   ':
+			print_hit()
+			TARGETTED_BOARD[row][col] = ' X '
+		else:
+			print_miss()
+			TARGETTED_BOARD[row][col] = ' o '
+
+		connection.sendall(Input.encode())
+
+		print_both_boards()
+
+		play_game(connection, my_turn=False)
+
+
+	else:
+		opponent_move = connection.recv(1024).decode()
+		index = len(opponent_move) - 1
+		row = opponent_move[:index]
+		col = opponent_move[index]
+		if BOARD[row][col] != '   ':
+			print("{} hit your ship at row {} col {}".format(OPPONENT_NAME, row, col))
+			BOARD[row][col] = ' X '
+		else:
+			print("{} missed at at row {} col {}".format(OPPONENT_NAME, row, col))
+
+		print_both_boards()
+
+		play_game(connection, my_turn=True)
+
+# helper for printing when there is a hit
 def print_hit():
 	print(" __     __   ________   ________    _   _   _ ")
 	print("|  |   |  | |__    __| |__    __|  | | | | | |")
@@ -377,6 +495,7 @@ def print_hit():
 	print("|  |   |  |  __|  |__     |  |      _   _   _ ")
 	print("|__|   |__| |________|    |__|     (_) (_) (_)")
 
+# helper for printing when there is a miss
 def print_miss():
 	print("                                        _")
 	print(" __  __   ___   ____    ____       _   / /")
@@ -400,64 +519,54 @@ def main():
 	global OPPONENT_BOARD
 
 	# if this player started game
-	if OPPONENT == None:
+	if STARTING == True:
+		# create socket and wait for connection
 		s.bind((HOST, PORT))
-		print("binding to {} at port {}".format(HOST, PORT))
 		s.listen()
+		print("Waiting for opponent to connect")
 		conn, addr = s.accept()
-		print('Connected by', addr)
+
+		# receive opponents name once connected
 		OPPONENT_NAME = conn.recv(1024).decode()
-		print("playing against {}".format(OPPONENT_NAME))
+		os.system('clear')
+		print("Connected to {}!\n".format(OPPONENT_NAME))
+
+		# send name and board length to opponent
 		hello_msg = (PLAYER_NAME + ':::' + str(MAX_LENGTH))
 		hello_msg = hello_msg.encode()
 		conn.sendall(hello_msg)
 		time.sleep(1)
+		print("You will now place your ships on the board")
+		time.sleep(2)
+
+		# place ships on board
 		initialize_board()
 		place_ships()
+
+		# send board to opponent once finished
 		conn.sendall(pickle.dumps(BOARD, -1))
 
+		# load opponents board
 		OPPONENT_BOARD = pickle.loads(conn.recv(4096))
 		print_opp_board()
 
-		print("Please input your attack location.")
-		print("An example would be \"7B\"")
-		received = sys.stdin.readline().strip()
-		valid_input = valid_location(received)
-
-		while not valid_input:
-			print("Sorry, {} is not a valid location on the board".format(received))
-			print("Please input a valid location")
-			received = sys.stdin.readline().strip()
-			valid_input = valid_location(received)
-
-		index = len(received) - 1
-		row = received[:index]
-		col = received[index]
-		if OPPONENT_BOARD[row][col] != '   ':
-			print_hit()
-		else:
-			print_miss()
-
-		conn.sendall(received.encode())
-
-
+		play_game(connection=conn, my_turn=True)
 
 
 
 	# if this player is joining a game
 	else:
-		print("Trying to connect to {} at port {}".format(OPPONENT, OPPONENT_PORT))
-		sys.stdout.flush()
-		s.connect((OPPONENT, OPPONENT_PORT))
+		s.connect((OPPONENT_IP, OPPONENT_PORT))
 		hello_msg = PLAYER_NAME.encode()
 		s.sendall(hello_msg)
 		received = s.recv(1024).decode()
 		received = received.split(':::')
 		OPPONENT_NAME = received[0]
-		print("playing against {}".format(OPPONENT_NAME))
 		MAX_LENGTH = int(received[1])
-		print("max length is {}".format(MAX_LENGTH))
+		print("Connected to {}!\n".format(OPPONENT_NAME))
 		time.sleep(1)
+		print("You will now place your ships on the board")
+		time.sleep(2)
 		initialize_board()
 		place_ships()
 		s.sendall(pickle.dumps(BOARD, -1))
@@ -465,17 +574,7 @@ def main():
 		OPPONENT_BOARD = pickle.loads(s.recv(4096))
 		print_opp_board()
 
-		opponent_move = s.recv(1024).decode()
-		index = len(opponent_move) - 1
-		row = opponent_move[:index]
-		col = opponent_move[index]
-		if BOARD[row][col] != '   ':
-			print("your opponent hit your ship")
-		else:
-			print("your opponent missed your ships")
-
-
-
+		play_game(connection=s, my_turn=False)
 
 if __name__ == '__main__':
 	main()
