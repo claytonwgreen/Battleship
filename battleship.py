@@ -4,6 +4,7 @@ import pickle
 import os
 import time
 import pickle
+import atexit
 
 
 #################################################################################
@@ -36,7 +37,7 @@ SHIPS = {
 	# }
 }
 OPPONENT_IP = None
-OPPONENT_PORT = None
+OPPONENT_PORT = 11223
 PLAYER_NAME = None
 OPPONENT_NAME = None
 
@@ -103,21 +104,11 @@ def starting_setup():
 
 # handler if player is joining a game
 def joining_setup():
-	print("Please input the IP address of your opponent, if playing on the same computer just hit Enter\n\nIP address: ", end='')
+	print("Please input the IP address of your opponent, if playing on the same computer just hit Enter\n\nIf they do not know their IP, they can simply type \"my ip\" into a IP address: ", end='')
 	global OPPONENT_IP
 	OPPONENT_IP = sys.stdin.readline().strip('\n')
 	if OPPONENT_IP == '':
 		OPPONENT_IP = '127.0.0.1'
-
-	os.system('clear')
-
-	print("Please input your opponents port number. If they did not enter one, just hit enter\n\nPort: ", end='')
-	global OPPONENT_PORT
-	OPPONENT_PORT = sys.stdin.readline().strip('\n')
-	if OPPONENT_PORT == '':
-		OPPONENT_PORT = 11223
-	else:
-		OPPONENT_PORT = int(OPPONENT_PORT)
 
 #################################################################################
 ############################## Initialization ###################################
@@ -397,10 +388,28 @@ def print_sep():
 
 # print target and own board during play
 def print_both_boards():
-	print('   ', end='|')
+	# print names
+	for i in range(MAX_LENGTH // 2 - 1):
+		print('    ', end='')
+	print("Your board", end='')
+	for i in range(MAX_LENGTH // 2 - 1):
+		print('    ', end='')
+	print('\t||\t', end='')
+	for i in range(MAX_LENGTH // 2 - 1):
+		print('    ', end='')
+	print("{}'s board".format(OPPONENT_NAME), end='')
+	for i in range(MAX_LENGTH // 2 - 1):
+		print('    ', end='')
+	print('', end='\n')
+	for i in range(MAX_LENGTH):
+		print('    ', end='')
+	print("\t||\t", end='')
+
+	# print boards
+	print('\n   ', end='|')
 	for column in COLUMNS:
 		print(" {} ".format(column), end='|')
-	print('\t\t   ', end='|')
+	print('\t||\t   ', end='|')
 	for column in COLUMNS:
 		print(" {} ".format(column), end='|')
 	print_both_sep()
@@ -414,7 +423,7 @@ def print_both_boards():
 				print('{}|'.format(BOARD[row][col]), end='')
 			else:
 				print('{}:'.format(BOARD[row][col]), end='')
-		print('\t\t', end='')
+		print('\t||\t', end='')
 		if len(row) == 1:
 			print(' {} |'.format(row), end='')
 		else:
@@ -431,60 +440,11 @@ def print_both_sep():
 	print('\n----', end='')
 	for i in COLUMNS:
 		print(' - -', end='')
-	print('\t\t', end='')
+	print('\t||\t', end='')
 	print('----', end='')
 	for i in COLUMNS:
 		print(' - -', end='')
 	print('', end='\n')
-
-#################################################################################
-################################## MOVES ########################################
-#################################################################################
-
-# send a move
-def play_game(connection, my_turn):
-
-	if my_turn:
-		print("Please input your attack location\nAn example would be \"7B\"\n\nLocation: ", end='')
-		Input = sys.stdin.readline().strip()
-		valid_input = valid_location(Input)
-
-		while not valid_input:
-			print("Sorry, {} is not a valid location on the board\n\nLocation: ".format(Input), end='')
-			Input = sys.stdin.readline().strip()
-			valid_input = valid_location(Input)
-
-		index = len(Input) - 1
-		row = Input[:index]
-		col = Input[index]
-		if OPPONENT_BOARD[row][col] != '   ':
-			print_hit()
-			TARGETTED_BOARD[row][col] = ' X '
-		else:
-			print_miss()
-			TARGETTED_BOARD[row][col] = ' o '
-
-		connection.sendall(Input.encode())
-
-		print_both_boards()
-
-		play_game(connection, my_turn=False)
-
-
-	else:
-		opponent_move = connection.recv(1024).decode()
-		index = len(opponent_move) - 1
-		row = opponent_move[:index]
-		col = opponent_move[index]
-		if BOARD[row][col] != '   ':
-			print("{} hit your ship at row {} col {}".format(OPPONENT_NAME, row, col))
-			BOARD[row][col] = ' X '
-		else:
-			print("{} missed at at row {} col {}".format(OPPONENT_NAME, row, col))
-
-		print_both_boards()
-
-		play_game(connection, my_turn=True)
 
 # helper for printing when there is a hit
 def print_hit():
@@ -505,6 +465,77 @@ def print_miss():
 	print("|_|  |_| |___| |____/  |____/          \\_\\")
 
 #################################################################################
+################################## MOVES ########################################
+#################################################################################
+
+# send a move
+def play_game(connection, my_turn):
+
+	if my_turn:
+		print("Please input your attack location\nAn example would be \"7B\"\n\nLocation: ", end='')
+		Input = sys.stdin.readline().strip()
+		valid_input = valid_location(Input)
+
+		while not valid_input:
+			print("Sorry, \"{}\" is not a valid location on the board\n\nLocation: ".format(Input), end='')
+			Input = sys.stdin.readline().strip()
+			valid_input = valid_location(Input)
+
+		index = len(Input) - 1
+		row = Input[:index]
+		col = Input[index]
+		hit = False
+		if OPPONENT_BOARD[row][col] != '   ':
+			hit = True
+			TARGETTED_BOARD[row][col] = ' X '
+		else:
+			hit = False
+			TARGETTED_BOARD[row][col] = ' o '
+
+		connection.sendall(Input.encode())
+
+		os.system('clear')
+
+		print_both_boards()
+
+		if hit:
+			print_hit()
+		else:
+			print_miss()
+
+		print("\nWaiting for {}'s move".format(OPPONENT_NAME))
+
+		play_game(connection, my_turn=False)
+
+
+	else:
+		opponent_move = connection.recv(1024).decode()
+		index = len(opponent_move) - 1
+		row = opponent_move[:index]
+		col = opponent_move[index]
+		hit = False
+		if BOARD[row][col] != '   ':
+			hit = True
+			BOARD[row][col] = ' X '
+
+		os.system('clear')
+
+		print_both_boards()
+
+		if hit:
+			print("\n{} hit your ship at row {} col {}\n".format(OPPONENT_NAME, row, col))
+		else:
+			print("\n{} missed at at row {} col {}\n".format(OPPONENT_NAME, row, col))
+
+		play_game(connection, my_turn=True)
+
+#################################################################################
+################################# SHUTDOWN ######################################
+#################################################################################
+def shutdown(socket):
+	socket.close()
+
+#################################################################################
 ################################### MAIN ########################################
 #################################################################################
 
@@ -517,6 +548,9 @@ def main():
 	global OPPONENT_NAME
 	global MAX_LENGTH
 	global OPPONENT_BOARD
+
+	# close socket at exit
+	atexit.register(shutdown, socket=s)
 
 	# if this player started game
 	if STARTING == True:
@@ -556,9 +590,18 @@ def main():
 
 	# if this player is joining a game
 	else:
-		s.connect((OPPONENT_IP, OPPONENT_PORT))
+		# try to connect to game
+		try:
+			s.connect((OPPONENT_IP, OPPONENT_PORT))
+		except:
+			print("Sorry, couldn't connect to {}, please restart".format(OPPONENT_IP))
+			return
+
+		# send player name
 		hello_msg = PLAYER_NAME.encode()
 		s.sendall(hello_msg)
+
+		# receive opponent name and size of board
 		received = s.recv(1024).decode()
 		received = received.split(':::')
 		OPPONENT_NAME = received[0]
@@ -567,10 +610,15 @@ def main():
 		time.sleep(1)
 		print("You will now place your ships on the board")
 		time.sleep(2)
+
+		# place ships on board
 		initialize_board()
 		place_ships()
+
+		# send board to opponent once finished
 		s.sendall(pickle.dumps(BOARD, -1))
 
+		# load opponents board
 		OPPONENT_BOARD = pickle.loads(s.recv(4096))
 		print_opp_board()
 
