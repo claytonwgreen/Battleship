@@ -3,7 +3,6 @@ import socket
 import pickle
 import os
 import time
-import pickle
 import atexit
 
 
@@ -23,17 +22,21 @@ OPPONENT_BOARD = None
 TARGETTED_BOARD = {}
 SHIPS = {
 	'Carrier' :  {
-		'size': 5
+		'size': 5,
+		'location': []
 	}
 	# },
 	# 'Battleship' : {
-	# 	'size': 4
+	# 	'size': 4,
+		# 'location': []
 	# },
 	# 'Destroyer' : {
-	# 	'size': 3
+	# 	'size': 3,
+		# 'location': []
 	# },
 	# 'Patrol-Boat': {
-	# 	'size': 2
+	# 	'size': 2,
+		# 'location': []
 	# }
 }
 OPPONENT_IP = None
@@ -104,7 +107,8 @@ def starting_setup():
 
 # handler if player is joining a game
 def joining_setup():
-	print("Please input the IP address of your opponent, if playing on the same computer just hit Enter\n\nIf they do not know their IP, they can simply type \"my ip\" into a IP address: ", end='')
+	print("Please input the IP address of your opponent, if playing on the same computer just hit \"Enter\".\nIf they do not know their IP, \
+they can simply type \"my ip\" into a browser to find it.\n\nIP address: ", end='')
 	global OPPONENT_IP
 	OPPONENT_IP = sys.stdin.readline().strip('\n')
 	if OPPONENT_IP == '':
@@ -130,6 +134,8 @@ def clear_main_board():
 		BOARD[row] = {}
 		for col in COLUMNS:
 			BOARD[row][col] = '   '
+	for ship in SHIPS:
+		SHIPS[ship]['location'] = []
 
 # set all entries on target board to empty
 def clear_opp_board():
@@ -296,31 +302,47 @@ def place_ship(ship_type, location_string, direction):
 		if direction == 'down':
 			if i == 0:
 				BOARD[ROWS[row + i]][COLUMNS[col]] = ' Λ '
+				save_location(ROWS[row + i] + COLUMNS[col], ship_type)
 			elif i == size - 1:
 				BOARD[ROWS[row + i]][COLUMNS[col]] = ' V '
+				save_location(ROWS[row + i] + COLUMNS[col], ship_type)
 			else:
 				BOARD[ROWS[row + i]][COLUMNS[col]] = ' ‖ '
+				save_location(ROWS[row + i] + COLUMNS[col], ship_type)
 		elif direction == 'up':
 			if i == 0:
 				BOARD[ROWS[row - i]][COLUMNS[col]] = ' V '
+				save_location(ROWS[row - i] + COLUMNS[col], ship_type)
 			elif i == size - 1:
 				BOARD[ROWS[row - i]][COLUMNS[col]] = ' Λ '
+				save_location(ROWS[row - i] + COLUMNS[col], ship_type)
 			else:
 				BOARD[ROWS[row - i]][COLUMNS[col]] = ' ‖ '
+				save_location(ROWS[row - i] + COLUMNS[col], ship_type)
 		elif direction == 'right':
 			if i == 0:
 				BOARD[ROWS[row]][COLUMNS[col + i]] = ' <='
+				save_location(ROWS[row] + COLUMNS[col + i], ship_type)
 			elif i == size - 1:
 				BOARD[ROWS[row]][COLUMNS[col + i]] = '=> '
+				save_location(ROWS[row] + COLUMNS[col + i], ship_type)
 			else:
 				BOARD[ROWS[row]][COLUMNS[col + i]] = '==='
+				save_location(ROWS[row] + COLUMNS[col + i], ship_type)
 		else:
 			if i == 0:
 				BOARD[ROWS[row]][COLUMNS[col - i]] = '=> '
+				save_location(ROWS[row] + COLUMNS[col - i], ship_type)
 			elif i == size - 1:
 				BOARD[ROWS[row]][COLUMNS[col - i]] = ' <='
+				save_location(ROWS[row] + COLUMNS[col - i], ship_type)
 			else:
 				BOARD[ROWS[row]][COLUMNS[col - i]] = '==='
+				save_location(ROWS[row] + COLUMNS[col - i], ship_type)
+
+# save location to ships
+def save_location(location_string, ship_type):
+	SHIPS[ship_type]['location'].append(location_string)
 
 #################################################################################
 ############################## PRINTING BOARD ###################################
@@ -489,7 +511,6 @@ def play_game(connection, my_turn):
 			hit = True
 			TARGETTED_BOARD[row][col] = ' X '
 		else:
-			hit = False
 			TARGETTED_BOARD[row][col] = ' o '
 
 		connection.sendall(Input.encode())
@@ -514,13 +535,24 @@ def play_game(connection, my_turn):
 		row = opponent_move[:index]
 		col = opponent_move[index]
 		hit = False
+		sunk = False
 		if BOARD[row][col] != '   ':
 			hit = True
 			BOARD[row][col] = ' X '
+			for ship in SHIPS:
+				if (row + col) in SHIPS[ship]['location']:
+					SHIPS[ship]['location'].remove(row + col)
+					if len(SHIPS[ship]['location']) == 0:
+						sunk = ship
 
 		os.system('clear')
 
 		print_both_boards()
+
+		print(SHIPS['Carrier']['location'])
+		if sunk:
+			print("{} sunk your {}".format(OPPONENT_NAME, sunk))
+
 
 		if hit:
 			print("\n{} hit your ship at row {} col {}\n".format(OPPONENT_NAME, row, col))
