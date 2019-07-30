@@ -18,18 +18,15 @@ HOST = '127.0.0.1'
 PORT = 11223
 STARTING = False
 BOARD = {}
-OPPONENT_BOARD = None
-TARGETTED_BOARD = {}
 SHIPS = {
 	'Carrier' :  {
 		'size': 5,
 		'location': []
-	}
-	# },
-	# 'Battleship' : {
-	# 	'size': 4,
-		# 'location': []
-	# },
+	},
+	'Battleship' : {
+		'size': 4,
+		'location': []
+	},
 	# 'Destroyer' : {
 	# 	'size': 3,
 		# 'location': []
@@ -39,6 +36,9 @@ SHIPS = {
 		# 'location': []
 	# }
 }
+OPPONENT_BOARD = None
+TARGETTED_BOARD = {}
+OPPONENT_SHIPS = {}
 OPPONENT_IP = None
 OPPONENT_PORT = 11223
 PLAYER_NAME = None
@@ -169,7 +169,7 @@ def place_ships():
 
 		# reset board
 		if len(location_array) == 1 and location_array[0] == 'clear':
-			clear_board()
+			clear_main_board()
 			available_ships = list(SHIPS.keys())
 			os.system('clear')
 		# invalid input sequence
@@ -486,6 +486,22 @@ def print_miss():
 	print("| |  | |  | |   ___) |  ___) |    (_) | | ")
 	print("|_|  |_| |___| |____/  |____/          \\_\\")
 
+# helper for prining when player wins
+def print_win():
+	print("__   __   ___    _   _    __        __   ___    _   _   _   _   _ ")
+	print("\\ \\ / /  / _ \\  | | | |   \\ \\      / /  / _ \\  | \\ | | | | | | | |")
+	print(" \\ V /  | | | | | | | |    \\ \\ /\\ / /  | | | | |  \\| | | | | | | |")
+	print("  | |   | |_| | | |_| |     \\ V  V /   | |_| | | |\\  | |_| |_| |_|")
+	print("  |_|    \\___/   \\___/       \\_/\\_/     \\___/  |_| \\_| (_) (_) (_)")
+
+def print_lost():
+	print(" __   __   ___    _   _     _        ___    ____    _____          __")
+	print(" \\ \\ / /  / _ \\  | | | |   | |      / _ \\  / ___|  |_   _|    _   / /")
+	print("  \\ V /  | | | | | | | |   | |     | | | | \\___ \\    | |     (_) | | ")
+	print("   | |   | |_| | | |_| |   | |___  | |_| |  ___) |   | |      _  | | ")
+	print("   |_|    \\___/   \\___/    |_____|  \\___/  |____/    |_|     (_) | | ")
+	print("                                                                  \\_\\")
+                                                                   
 #################################################################################
 ################################## MOVES ########################################
 #################################################################################
@@ -507,9 +523,23 @@ def play_game(connection, my_turn):
 		row = Input[:index]
 		col = Input[index]
 		hit = False
+		sunk = False
+		game_over = False
 		if OPPONENT_BOARD[row][col] != '   ':
 			hit = True
 			TARGETTED_BOARD[row][col] = ' X '
+			for ship in SHIPS:
+				print(ship)
+				print(type(OPPONENT_SHIPS))
+				print(type(OPPONENT_SHIPS[ship]))
+				if (row + col) in OPPONENT_SHIPS[ship]['location']:
+					OPPONENT_SHIPS[ship]['location'].remove(row + col)
+					if len(OPPONENT_SHIPS[ship]['location']) == 0:
+						sunk = ship
+						game_over = True
+						for ship in SHIPS:
+							if len(OPPONENT_SHIPS[ship]['location']) != 0:
+								game_over = False
 		else:
 			TARGETTED_BOARD[row][col] = ' o '
 
@@ -521,6 +551,11 @@ def play_game(connection, my_turn):
 
 		if hit:
 			print_hit()
+			if sunk:
+				print("\nYou sunk {}'s {}!!!".format(OPPONENT_NAME, sunk))
+				if game_over:
+					print_win()
+					return
 		else:
 			print_miss()
 
@@ -536,6 +571,7 @@ def play_game(connection, my_turn):
 		col = opponent_move[index]
 		hit = False
 		sunk = False
+		game_over = False
 		if BOARD[row][col] != '   ':
 			hit = True
 			BOARD[row][col] = ' X '
@@ -544,18 +580,24 @@ def play_game(connection, my_turn):
 					SHIPS[ship]['location'].remove(row + col)
 					if len(SHIPS[ship]['location']) == 0:
 						sunk = ship
+						game_over = True
+						for ship in SHIPS:
+							if len(SHIPS[ship]['location']) != 0:
+								game_over = False
+
 
 		os.system('clear')
 
 		print_both_boards()
 
-		print(SHIPS['Carrier']['location'])
-		if sunk:
-			print("{} sunk your {}".format(OPPONENT_NAME, sunk))
-
-
 		if hit:
 			print("\n{} hit your ship at row {} col {}\n".format(OPPONENT_NAME, row, col))
+			if sunk:
+				print("{} sunk your {}\n".format(OPPONENT_NAME, sunk))
+				if game_over:
+					print_lost()
+					return
+
 		else:
 			print("\n{} missed at at row {} col {}\n".format(OPPONENT_NAME, row, col))
 
@@ -580,6 +622,7 @@ def main():
 	global OPPONENT_NAME
 	global MAX_LENGTH
 	global OPPONENT_BOARD
+	global OPPONENT_SHIPS
 
 	# close socket at exit
 	atexit.register(shutdown, socket=s)
@@ -593,7 +636,7 @@ def main():
 		conn, addr = s.accept()
 
 		# receive opponents name once connected
-		OPPONENT_NAME = conn.recv(1024).decode()
+		OPPONENT_NAME = conn.recv(1024).decode().upper()
 		os.system('clear')
 		print("Connected to {}!\n".format(OPPONENT_NAME))
 
@@ -614,6 +657,13 @@ def main():
 
 		# load opponents board
 		OPPONENT_BOARD = pickle.loads(conn.recv(4096))
+
+		# send ships to opponent
+		conn.sendall(pickle.dumps(SHIPS, -1))
+
+		# load opponents ships
+		OPPONENT_SHIPS = pickle.loads(conn.recv(4096))
+
 		print_opp_board()
 
 		play_game(connection=conn, my_turn=True)
@@ -636,7 +686,7 @@ def main():
 		# receive opponent name and size of board
 		received = s.recv(1024).decode()
 		received = received.split(':::')
-		OPPONENT_NAME = received[0]
+		OPPONENT_NAME = received[0].upper()
 		MAX_LENGTH = int(received[1])
 		print("Connected to {}!\n".format(OPPONENT_NAME))
 		time.sleep(1)
@@ -652,6 +702,13 @@ def main():
 
 		# load opponents board
 		OPPONENT_BOARD = pickle.loads(s.recv(4096))
+
+		# send ships to opponent
+		s.sendall(pickle.dumps(SHIPS, -1))
+
+		# load opponents ships
+		OPPONENT_SHIPS = pickle.loads(s.recv(4096))
+
 		print_opp_board()
 
 		play_game(connection=s, my_turn=False)
