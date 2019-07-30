@@ -27,14 +27,32 @@ SHIPS = {
 		'size': 4,
 		'location': []
 	},
-	# 'Destroyer' : {
-	# 	'size': 3,
-		# 'location': []
+	'Destroyer' : {
+		'size': 3,
+		'location': []
+	},
+	'Patrol-Boat': {
+		'size': 2,
+		'location': []
+	}
 	# },
-	# 'Patrol-Boat': {
+	# 'Carrier2' :  {
+	# 	'size': 5,
+	# 	'location': []
+	# },
+	# 'Battleship2' : {
+	# 	'size': 4,
+	# 	'location': []
+	# },
+	# 'Destroyer2' : {
+	# 	'size': 3,
+	# 	'location': []
+	# },
+	# 'Patrol-Boat2': {
 	# 	'size': 2,
-		# 'location': []
+	# 	'location': []
 	# }
+
 }
 OPPONENT_BOARD = None
 TARGETTED_BOARD = {}
