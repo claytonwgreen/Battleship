@@ -19,36 +19,57 @@ PORT = 11223
 STARTING = False
 BOARD = {}
 SHIPS = {
-	'Carrier' :  {
-		'size': 5,
-		'location': []
-	},
-	'Battleship' : {
-		'size': 4,
-		'location': []
-	},
-	'Destroyer' : {
-		'size': 3,
-		'location': []
-	},
+	# 'Carrier' :  {
+	# 	'size': 5,
+	# 	'location': []
+	# },
+	# 'Battleship' : {
+	# 	'size': 4,
+	# 	'location': []
+	# },
+	# 'Destroyer' : {
+	# 	'size': 3,
+	# 	'location': []
+	# },
 	'Patrol-Boat': {
 		'size': 2,
 		'location': []
 	}
-	# },
-	# 'Carrier2' :  {
+	#########################################################
+	#### uncomment any of the below ships if you want #######
+	#### to be able to place more ships on the board  #######
+	#########################################################
+	# 
+	# ,'Carrier2' :  {
 	# 	'size': 5,
 	# 	'location': []
-	# },
-	# 'Battleship2' : {
+	# }
+	# ,'Battleship2' : {
 	# 	'size': 4,
 	# 	'location': []
-	# },
-	# 'Destroyer2' : {
+	# }
+	# ,'Destroyer2' : {
 	# 	'size': 3,
 	# 	'location': []
-	# },
-	# 'Patrol-Boat2': {
+	# }
+	# ,'Patrol-Boat2': {
+	# 	'size': 2,
+	# 	'location': []
+	# }
+	# 
+	# ,'Carrier3' :  {
+	# 	'size': 5,
+	# 	'location': []
+	# }
+	# ,'Battleship3' : {
+	# 	'size': 4,
+	# 	'location': []
+	# }
+	# ,'Destroyer3' : {
+	# 	'size': 3,
+	# 	'location': []
+	# }
+	# ,'Patrol-Boat3': {
 	# 	'size': 2,
 	# 	'location': []
 	# }
@@ -132,9 +153,9 @@ they can simply type \"my ip\" into a browser to find it.\n\nIP address: ", end=
 	if OPPONENT_IP == '':
 		OPPONENT_IP = '127.0.0.1'
 
-#################################################################################
-############################## Initialization ###################################
-#################################################################################
+# #################################################################################
+# ############################## Initialization ###################################
+# #################################################################################
 
 # initialize all places on board as empty
 def initialize_board():
@@ -530,6 +551,15 @@ def play_game(connection, my_turn):
 	if my_turn:
 		print("Please input your attack location\nAn example would be \"7B\"\n\nLocation: ", end='')
 		Input = sys.stdin.readline().strip()
+		if Input == "IAMACHEATER":
+			os.system('clear')
+			print("{}'s board, you really shouldn't be cheating ;)\n".format(OPPONENT_NAME))
+			print_opp_board()
+			time.sleep(5)
+			os.system('clear')
+			print_both_boards()
+			return play_game(connection, my_turn)
+
 		valid_input = valid_location(Input)
 
 		while not valid_input:
@@ -573,7 +603,8 @@ def play_game(connection, my_turn):
 				print("\nYou sunk {}'s {}!!!".format(OPPONENT_NAME, sunk))
 				if game_over:
 					print_win()
-					return
+					time.sleep(3)
+					return replay(connection, my_turn)
 		else:
 			print_miss()
 
@@ -614,12 +645,67 @@ def play_game(connection, my_turn):
 				print("{} sunk your {}\n".format(OPPONENT_NAME, sunk))
 				if game_over:
 					print_lost()
-					return
+					time.sleep(3)
+					return replay(connection, my_turn)
 
 		else:
 			print("\n{} missed at at row {} col {}\n".format(OPPONENT_NAME, row, col))
 
 		play_game(connection, my_turn=True)
+
+def replay(conn, my_turn):
+	print("\nWould you like to play again? \n(yes/no):", end='')
+	Input = sys.stdin.readline().strip().lower()
+	while Input != 'y' and Input != 'n' and Input != 'yes' and Input != 'no':
+		os.system('clear')
+		print("Sorry, you must say yes or no")
+		Input = sys.stdin.readline().strip().lower()
+
+	if Input == 'y' or Input == 'yes':
+		global OPPONENT_BOARD
+		global OPPONENT_SHIPS
+
+		# tell other player you want to replay
+		conn.sendall("yes".encode())
+		os.system('clear')
+		print("Waitng for {} to respond\n".format(OPPONENT_NAME))
+
+		# get opponents response
+		resp = conn.recv(32).decode()
+
+		if resp == "no":
+			os.system('clear')
+			print("Sorry, {} quit\n\nGoodbye".format(OPPONENT_NAME))
+			time.sleep(3)
+			return
+
+		# place ships on board
+		initialize_board()
+		place_ships()
+
+		# send board to opponent once finished
+		conn.sendall(pickle.dumps(BOARD, -1))
+
+		# load opponents board
+		OPPONENT_BOARD = pickle.loads(conn.recv(4096))
+
+		# send ships to opponent
+		conn.sendall(pickle.dumps(SHIPS, -1))
+
+		# load opponents ships
+		OPPONENT_SHIPS = pickle.loads(conn.recv(4096))
+
+		os.system('clear')
+		print_both_boards()
+
+		play_game(connection=conn, my_turn=my_turn)
+
+	else:
+		conn.sendall("no".encode())
+		print("\nGoodbye")
+		return
+
+
 
 #################################################################################
 ################################# SHUTDOWN ######################################
@@ -682,7 +768,8 @@ def main():
 		# load opponents ships
 		OPPONENT_SHIPS = pickle.loads(conn.recv(4096))
 
-		print_opp_board()
+		os.system('clear')
+		print_both_boards()
 
 		play_game(connection=conn, my_turn=True)
 
@@ -727,7 +814,9 @@ def main():
 		# load opponents ships
 		OPPONENT_SHIPS = pickle.loads(s.recv(4096))
 
-		print_opp_board()
+		os.system('clear')
+		print_both_boards()
+		print("\nWaiting for {}'s move".format(OPPONENT_NAME))
 
 		play_game(connection=s, my_turn=False)
 
